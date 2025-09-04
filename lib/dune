@@ -1,0 +1,5 @@
+(library
+ (name priories)
+ (inline_tests (flags (-stop-on-error)))
+ (libraries pringo)
+ (preprocess (pps ppx_inline_test)))
