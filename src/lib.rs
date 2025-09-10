@@ -1,8 +1,18 @@
-#![no_std]
+#![cfg_attr(not(feature = "export-abi"), no_std)]
 
-use rand::Rng;
+use rand::{SeedableRng, Rng};
 
 use rand_chacha::ChaCha8Rng;
+
+use stylus_sdk::{alloy_primitives::*, prelude::*, storage::*};
+
+extern crate alloc;
+
+use alloc::{string::String, vec, vec::Vec};
+
+static MAX_ELEMENTS: usize = 10;
+
+static SIZE: usize = 100;
 
 #[derive(Clone, Debug, Copy)]
 pub enum ReadingRoom {
@@ -246,4 +256,32 @@ pub fn draw_dormitory<const E: usize, const S: usize>(c: ChaCha8Rng) -> [char; S
 
 pub fn draw_kitchen<const E: usize, const S: usize>(c: ChaCha8Rng) -> [char; S] {
     draw::<_, S>(c.clone(), KitchenIterator::new(c).take(E))
+}
+
+#[storage]
+#[entrypoint]
+struct Storage {
+    pub seed: StorageFixedBytes<32>,
+}
+
+#[panic_handler]
+#[cfg(target_arch = "wasm32")]
+fn panic(_: &core::panic::PanicInfo) -> ! {
+    core::arch::wasm32::unreachable()
+}
+
+#[public]
+impl Storage {
+    pub fn generate(&mut self) -> String {
+        let mut c = ChaCha8Rng::from_seed(*self.seed.get());
+        // This randomness strategy isn't perfect!
+        let s = match c.random_range(0..5) {
+            0 => draw_reading_room::<MAX_ELEMENTS, SIZE>(c),
+            1 => draw_financial_room::<MAX_ELEMENTS, SIZE>(c),
+            2 => draw_dormitory::<MAX_ELEMENTS, SIZE>(c),
+            3 => draw_kitchen::<MAX_ELEMENTS, SIZE>(c),
+            _ => unreachable!(),
+        };
+        s.iter().collect()
+    }
 }
